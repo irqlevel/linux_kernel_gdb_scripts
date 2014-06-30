@@ -20,17 +20,38 @@ class Tasks(gdb.Command):
 		gdb.Command.__init__(self, "tasks", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
 	def invoke(self, args, from_tty):
 		try:
+			argv = gdb.string_to_argv(args)
 			task_t = gdb.lookup_type('struct task_struct')
-			list_off = gdb.parse_and_eval('&((struct task_struct *)0)->tasks')
-			init = gdb.parse_and_eval("init_task")
-			head = init['tasks']
-			list_entry = head['next']
-			while list_entry != head.address:
-				v = gdb.Value(long(list_entry) - long(list_off))
-				task_p = v.cast(task_t.pointer())
-				task = kstructs.task_struct(task_p.dereference())
-				print task, '\n'
-				list_entry = list_entry['next']
+			thread_info_t = gdb.lookup_type('struct thread_info')
+			if len(argv) == 0:
+				list_off = gdb.parse_and_eval('&((struct task_struct *)0)->tasks')
+				init = gdb.parse_and_eval("init_task")
+				head = init['tasks']
+				list_entry = head['next']
+				while list_entry != head.address:
+					v = gdb.Value(long(list_entry) - long(list_off))
+					task_p = v.cast(task_t.pointer())
+					task = kstructs.task_struct(task_p.dereference())
+					print task, '\n'
+					list_entry = list_entry['next']
+			elif len(argv) == 1:
+				if argv[0] == "current":
+					v = gdb.Value(long(gdb.parse_and_eval('$rsp')) & -8192)
+					th_info = v.cast(thread_info_t.pointer())
+					task = kstructs.task_struct(th_info['task'].dereference())
+					print task
+				else:
+					raise Exception("Unknown option=" + argv[0])
+			elif len(argv) == 2:
+				if argv[0] == "task":
+					v = gdb.Value(int(argv[1], 16))
+					task_p = v.cast(task_t.pointer())
+					task = kstructs.task_struct(task_p.dereference())
+					print task
+				else:
+					raise Exception("Unknown option=" + argv[0])
+			else:
+				raise Exception("Invalid num args=" + len(argv))
 		except Exception as e:
 			print "Exception=", str(e)
 			traceback.print_exc()

@@ -15,11 +15,10 @@ if not found:
 
 import kstructs
 
-class Tasks():
+class Tasks(gdb.Command):
 	def __init__(self):
-		pass
-		#gdb.Command.__init__(self, "tasks", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
-	def invoke(self):
+		gdb.Command.__init__(self, "tasks", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
+	def invoke(self, args, from_tty):
 		try:
 			task_t = gdb.lookup_type('struct task_struct')
 			list_off = gdb.parse_and_eval('&((struct task_struct *)0)->tasks')
@@ -36,7 +35,4 @@ class Tasks():
 			print "Exception=", str(e)
 			traceback.print_exc()
 
-if __name__=="__main__":
-	ts = Tasks()
-	ts.invoke()
-	
+Tasks()

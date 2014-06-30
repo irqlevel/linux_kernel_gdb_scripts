@@ -15,10 +15,10 @@ if not found:
 
 import kstructs
 
-class Modules():
+class Modules(gdb.Command):
 	def __init__(self):
-		pass
-	def invoke(self):
+		gdb.Command.__init__(self, "modules", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
+	def invoke(self, arg, from_tty):
 		try:
 			m_type = gdb.lookup_type('struct module')
 			list_off = gdb.parse_and_eval('&((struct module *)0)->list')
@@ -34,6 +34,4 @@ class Modules():
 			print "Exception=", str(e)
 			traceback.print_exc()
 
-if __name__=="__main__":
-	m = Modules()
-	m.invoke()
+Modules()

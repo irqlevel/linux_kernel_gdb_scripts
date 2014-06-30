@@ -34,16 +34,14 @@ class Tasks(gdb.Command):
 					task = kstructs.task_struct(task_p.dereference())
 					print task, '\n'
 					list_entry = list_entry['next']
-			elif len(argv) == 1:
+			elif len(argv) == 2:
 				if argv[0] == "current":
-					v = gdb.Value(long(gdb.parse_and_eval('$rsp')) & -8192)
+					page_size = int(argv[1], 16)
+					v = gdb.Value(long(gdb.parse_and_eval('$rsp')) & -page_size)
 					th_info = v.cast(thread_info_t.pointer())
 					task = kstructs.task_struct(th_info['task'].dereference())
 					print task
-				else:
-					raise Exception("Unknown option=" + argv[0])
-			elif len(argv) == 2:
-				if argv[0] == "task":
+				elif argv[0] == "task":
 					v = gdb.Value(int(argv[1], 16))
 					task_p = v.cast(task_t.pointer())
 					task = kstructs.task_struct(task_p.dereference())

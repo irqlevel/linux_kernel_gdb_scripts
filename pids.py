@@ -55,6 +55,13 @@ class hlist_node():
 		return out
 class upid():
 	pid_chain_off = 0
+	sz = 0
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct upid)"))
+		return cls.sz
+
 	@classmethod
 	def get_pid_chain_off(cls):
 		if cls.pid_chain_off == 0:
@@ -76,6 +83,86 @@ class upid():
 	def __str__(self):
 		out = "upid=" + str(self.v.address) + " nr=" + str(self.nr)
 		return out
+	def get_pid_ns(self):
+		if self.v['ns'] != 0:
+			return pid_ns.ptr(long(self.v['ns']))
+		else:
+			return None
+
+class pid_ns():
+	def __init__(self, v):
+		self.v = v
+		self.level = long(self.v['level'])
+		self.nr_hashed = long(self.v['nr_hashed'])
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct pid_namespace')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	def __str__(self):
+		out = "pid_ns=" + str(self.v.address) + " level=" + str(self.level) + " nr_hashed=" + str(self.nr_hashed)
+		return out
+
+
+PIDTYPE_PID = 0
+PIDTYPE_PGID = 1
+PIDTYPE_SID = 2
+PIDTYPE_MAX = 3
+
+class pid_c():
+	tasks_off = 0
+	@classmethod
+	def get_tasks_off(cls):
+		if cls.tasks_off == 0:
+			cls.tasks_off = long(gdb.parse_and_eval('&((struct pid *)0)->tasks'))
+		return cls.tasks_off
+
+	numbers_off = 0
+	@classmethod
+	def get_numbers_off(cls):
+		if cls.numbers_off == 0:
+			cls.numbers_off = long(gdb.parse_and_eval('&((struct pid *)0)->numbers'))
+		return cls.numbers_off
+	def __init__(self, v):
+		self.v = v
+		self.level = self.v['level']
+		self.count = self.v['count']
+		self.upids = []
+		upid_addr = long(self.v.address) + pid_c.get_numbers_off()
+		
+		for i in xrange(self.level + 1):
+			#print "i=", i
+			up = upid.ptr(upid_addr)
+			self.upids.append(up)
+			upid_addr+= upid.size()
+
+		tasks_addr = long(self.v.address) + pid_c.get_tasks_off()
+		for i in xrange(PIDTYPE_MAX):
+			head = hlist_head.ptr(tasks_addr)
+			node = head.first()
+			while node != None:
+				#print node
+				node = node.next()
+			tasks_addr+= hlist_head.size()
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct pid')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	def __str__(self):
+		out = "pid=" + str(self.v.address) + " level=" + str(self.level) + " count=" + str(self.count) + "\n"
+		for up in self.upids:
+			out+= "\t" + str(up) + "\n"
+		out+= "\n"
+		return out
+
+	@classmethod
+	def from_upid(cls, upid):
+		pid_ns = upid.get_pid_ns()
+		return cls.ptr(long(upid.v.address) - cls.get_numbers_off() - pid_ns.level*upid.size())
+
 
 class Pids(gdb.Command):
 	def __init__(self):
@@ -97,19 +184,21 @@ class Pids(gdb.Command):
 					
 				head = hlist_head.ptr(pid_hash.dereference().address)
 				#print head
-				ns = 0
+				pids_d = {}
 				for i in xrange(pidhash_size):
 					#print head, i
 					node = head.first()
 					while node != None:
 						#print node
 						up = upid.from_pidhash_node(node)
-						print up
-						ns+=1
+						#print #up, up.get_pid_ns(), pid_c.from_upid(up)
+						pd = pid_c.from_upid(up)
+						pids_d[long(pd.v.address)] = pd
 						node = node.next()
 					#print head
 					head = head.after()
-				print ns
+				for k in pids_d:
+					print pids_d[k]
 			elif len(argv) == 2:
 				if argv[0] == "pid":
 					pid = int(argv[1], 16)

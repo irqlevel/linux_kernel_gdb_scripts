@@ -45,9 +45,17 @@ class hlist_head():
 class hlist_node():
 	def __init__(self, v):
 		self.v = v
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct hlist_node')
+
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+
 	def next(self):
 		if self.v['next'] != 0:
-			return hlist_node(self.v['next'])
+			return hlist_node.ptr(long(self.v['next']))
 		else:
 			return None
 	def __str__(self):
@@ -104,11 +112,71 @@ class pid_ns():
 		out = "pid_ns=" + str(self.v.address) + " level=" + str(self.level) + " nr_hashed=" + str(self.nr_hashed)
 		return out
 
+class pid_link():
+	def __init__(self, v):
+		self.v = v
+	sz = 0
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct pid_link)"))
+		return cls.sz
+
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct pid_link')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	def __str__(self):
+		out = "pid_link=" + str(self.v.address)
+		return out
+
+class task_struct():
+	sz = 0
+	pids_off = 0
+	@classmethod
+	def get_pids_off(cls):
+		if cls.pids_off == 0:
+			cls.pids_off = long(gdb.parse_and_eval("&((struct task_struct *)0)->pids"))
+		return cls.pids_off
+	
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct task_struct)"))
+		return cls.sz
+	
+	def __init__(self, v):
+		self.v = v
+	
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct task_struct')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	def __str__(self):
+		out = "task=" + str(self.v.address)
+		return out
+	@classmethod
+	def from_pid_link(cls, pid_link, i):
+		return cls.ptr(long(pid_link.v.address) - i*pid_link.size() - cls.get_pids_off())
 
 PIDTYPE_PID = 0
 PIDTYPE_PGID = 1
 PIDTYPE_SID = 2
 PIDTYPE_MAX = 3
+
+PIDTYPES = {PIDTYPE_PID : "PID", PIDTYPE_PGID : "PGID", PIDTYPE_SID : "SID"}
+
+class atomic_t():
+	def __init__(self, v):
+		self.v = v
+		self.counter = long(self.v['counter'])
+	def __str__(self):
+		out = "atomic_t=" + str(self.v.address) + " counter=" + str(self.counter)
+		return out
 
 class pid_c():
 	tasks_off = 0
@@ -124,10 +192,14 @@ class pid_c():
 		if cls.numbers_off == 0:
 			cls.numbers_off = long(gdb.parse_and_eval('&((struct pid *)0)->numbers'))
 		return cls.numbers_off
+
+
 	def __init__(self, v):
 		self.v = v
 		self.level = self.v['level']
-		self.count = self.v['count']
+		self.count = atomic_t(self.v['count'])
+
+	def get_uids(self):
 		self.upids = []
 		upid_addr = long(self.v.address) + pid_c.get_numbers_off()
 		
@@ -136,15 +208,21 @@ class pid_c():
 			up = upid.ptr(upid_addr)
 			self.upids.append(up)
 			upid_addr+= upid.size()
-
+	
+	def get_tasks(self):
+		self.tasks = {PIDTYPE_PID : [], PIDTYPE_PGID : [], PIDTYPE_SID : []}
 		tasks_addr = long(self.v.address) + pid_c.get_tasks_off()
 		for i in xrange(PIDTYPE_MAX):
 			head = hlist_head.ptr(tasks_addr)
+			#print head
 			node = head.first()
 			while node != None:
 				#print node
+				pl = pid_link.ptr(long(node.v.address))
+				self.tasks[i].append(task_struct.from_pid_link(pl, i))
 				node = node.next()
 			tasks_addr+= hlist_head.size()
+
 	@classmethod
 	def type_t(cls):
 		return gdb.lookup_type('struct pid')
@@ -152,9 +230,19 @@ class pid_c():
 	def ptr(cls, addr):
 		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
 	def __str__(self):
+
 		out = "pid=" + str(self.v.address) + " level=" + str(self.level) + " count=" + str(self.count) + "\n"
+		self.get_uids()
+		out+= "\t upids:\n"
 		for up in self.upids:
-			out+= "\t" + str(up) + "\n"
+			out+= "\t\t" + str(up) + "\n"
+		out+= "\n"
+		self.get_tasks()
+		out+= "\t tasks:\n"
+		for i in xrange(PIDTYPE_MAX):
+			out+= "\t\t" + PIDTYPES[i] + ":\n"
+			for t in self.tasks[i]:
+				out+= "\t\t\t" + str(t) + "\n"
 		out+= "\n"
 		return out
 

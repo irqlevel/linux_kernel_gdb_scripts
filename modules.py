@@ -20,6 +20,7 @@ class Modules(gdb.Command):
 		gdb.Command.__init__(self, "modules", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
 	def invoke(self, arg, from_tty):
 		try:
+			reload(kstructs)
 			m_type = gdb.lookup_type('struct module')
 			list_off = gdb.parse_and_eval('&((struct module *)0)->list')
 			head = gdb.parse_and_eval("modules")

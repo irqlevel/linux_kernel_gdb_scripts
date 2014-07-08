@@ -20,6 +20,7 @@ class Tasks(gdb.Command):
 		gdb.Command.__init__(self, "tasks", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
 	def invoke(self, args, from_tty):
 		try:
+			reload(kstructs)
 			argv = gdb.string_to_argv(args)
 			task_t = gdb.lookup_type('struct task_struct')
 			thread_info_t = gdb.lookup_type('struct thread_info')

@@ -350,6 +350,7 @@ class task_struct():
 			out += ' ' + str(self.mm)
 
 		if childs:
+			self.get_childs()
 			out+= '\n\tchilds:\n'
 			for t in self.childs:
 				out += '\t\t' + t.to_str(flags = True, comm = True) + '\n'

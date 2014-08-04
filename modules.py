@@ -50,6 +50,16 @@ class Modules(gdb.Command):
 					for mod in self.modules():
 						if addr >= mod.module_core and addr < mod.module_core + mod.core_size:
 							print mod, '\n'
+				elif argv[0] == "name":
+					name = argv[1]
+					for mod in self.modules():
+						if mod.name.find(name) != -1:
+							print mod, '\n'
+				else:
+					raise Exception("unknown args")
+			else:
+				raise Exception("unknown args")
+
 		except Exception as e:
 			print "Exception=", str(e)
 			traceback.print_exc()

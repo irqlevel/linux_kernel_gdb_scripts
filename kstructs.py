@@ -424,6 +424,8 @@ class module():
 		self.module_core = self.v['module_core']
 		self.core_size = self.v['core_size']
 		self.core_text_size = self.v['core_text_size']
+		self.base_addr = long(self.module_core)
+		self.size = long(self.core_size)
 	def __str__(self):
 		out = 'module=' + str(self.v.address) + ' name=' + self.name + ' module_core=' + str(self.module_core) 
 		out+= ' core_size=' + str(self.core_size) + ' core_text_size=' + str(self.core_text_size)

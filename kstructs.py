@@ -415,7 +415,67 @@ class path():
 	def __str__(self):
 		out= 'path=' + str(self.v.address) + " " + self.query_path()
 		return out
-		
+
+def tohex(val, nbits):
+	return hex(long((long(val) + (1 << nbits)) % (1 << nbits))).rstrip('L')
+
+def tohex64(val):
+	try:
+		return tohex(val, 64)
+	except Exception as e:
+		print str(e), val
+		raise
+
+class module_sect_attr():
+	sz = 0
+	def __init__(self, v):
+		self.v = v
+		self.name = self.v['name'].string()
+		self.address = self.v['address']
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct module_sect_attr)"))
+		return cls.sz
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct module_sect_attr')
+	def __str__(self):
+		out = "sec_attr name=" + self.name + " addr=" + tohex64(self.address)
+		return out
+
+class module_sect_attrs():
+	def __init__(self, v):
+		self.v = v
+		self.nsections = int(self.v['nsections'])
+		sec_attr_addr = long(self.v.address) + module_sect_attrs.get_attrs_off()
+		self.sec_attrs = []
+		for i in xrange(self.nsections):
+			sec_attr = module_sect_attr.ptr(sec_attr_addr)
+			sec_attr_addr+= module_sect_attr.size()
+			self.sec_attrs.append(sec_attr)
+	attrs_off = 0
+	@classmethod
+	def get_attrs_off(cls):
+		if cls.attrs_off == 0:
+			cls.attrs_off = long(gdb.parse_and_eval("&((struct module_sect_attrs *)0)->attrs"))
+		return cls.attrs_off
+	
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct module_sect_attrs')
+	def __str__(self):
+		out = 'sec_attrs=' + str(self.v.address) + '\n'
+		for sec_attr in self.sec_attrs:
+			out+= " \t" + str(sec_attr) + '\n'
+		return out
+
 class module():
 	def __init__(self, v):
 		self.v = v
@@ -426,9 +486,15 @@ class module():
 		self.core_text_size = self.v['core_text_size']
 		self.base_addr = long(self.module_core)
 		self.size = long(self.core_size)
+		self.sect_attrs = None
+	def sections(self):
+		self.sect_attrs = module_sect_attrs.ptr(long(self.v['sect_attrs'].dereference().address))
+		
 	def __str__(self):
 		out = 'module=' + str(self.v.address) + ' name=' + self.name + ' module_core=' + str(self.module_core) 
-		out+= ' core_size=' + str(self.core_size) + ' core_text_size=' + str(self.core_text_size)
+		out+= ' core_size=' + str(self.core_size) + ' core_text_size=' + str(self.core_text_size) + '\n'
+		if self.sect_attrs != None:
+			out+= str(self.sect_attrs)
 		return out
 
 class vfsmount():
@@ -436,4 +502,69 @@ class vfsmount():
 		self.v = v
 		#print 'vfs_mount=', self.v.address
 		self.mnt_root = dentry(self.v['mnt_root'].dereference())
+
+class rb_node():
+	def __init__(self, v):
+		self.v = v
+		self.rb_parent_color = self.v['rb_parent_color']
+		self.address = long(self.v.address)
+
+	def rb_right(self):
+		if self.v['rb_right']:
+			return rb_node(self.v['rb_right'].dereference())
+		return None
+
+	def rb_left(self):
+		if self.v['rb_left']:
+			return rb_node(self.v['rb_left'].dereference())
+		return None
+
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct rb_node')
+	def __str__(self):
+		out = 'rb_node=' + tohex64(self.address) + ' par_clr=' + tohex64(self.rb_parent_color)
+		return out
+	def enum_childs(self):
+		childs = []
+		left = self.rb_left()
+		right = self.rb_right()
+		if left != None:
+			childs.append(left)
+			childs.extend(left.enum_childs())
+		if right != None:
+			childs.append(right)
+			childs.extend(right.enum_childs())
+		return childs
+
+class rb_root():
+	def __init__(self, v):
+		self.v = v
+		if self.v['rb_node']:
+			self.rb_node = rb_node.ptr(long(self.v['rb_node'].dereference().address))
+		print self.rb_node
+		self.address = long(self.v.address)
+	
+	def enum_nodes(self):
+		nodes = []
+		node = self.rb_node
+		if node != None:
+			nodes.append(node)
+			nodes.extend(node.enum_childs())
+		return nodes
+
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct rb_root')
+	def __str__(self):
+		out = 'rb_root=' + tohex64(self.address) + '\n'
+		for n in self.enum_nodes():
+			out+= '\t' + str(n) + '\n'
+		return out
 

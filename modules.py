@@ -37,23 +37,33 @@ class Modules(gdb.Command):
 
 		return sorted(mod_list, key = attrgetter('base_addr'))
 
+
 	def invoke(self, arg, from_tty):
 		try:
 			reload(kstructs)
 			argv = gdb.string_to_argv(arg)
+			sections = False
+			for a in argv:
+				if a == "--sections":
+					sections = True
+
 			if len(argv) == 0:
 				for mod in self.modules():
 					print mod, '\n'
-			elif len(argv) == 2:
+			elif len(argv) >= 2:
 				if argv[0] == "addr":
 					addr = long(int(argv[1], 16))
 					for mod in self.modules():
 						if addr >= mod.module_core and addr < mod.module_core + mod.core_size:
+							if sections:
+								mod.sections()
 							print mod, '\n'
 				elif argv[0] == "name":
 					name = argv[1]
 					for mod in self.modules():
 						if mod.name.find(name) != -1:
+							if sections:
+								mod.sections()
 							print mod, '\n'
 				else:
 					raise Exception("unknown args")

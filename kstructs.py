@@ -545,7 +545,6 @@ class rb_root():
 		self.v = v
 		if self.v['rb_node']:
 			self.rb_node = rb_node.ptr(long(self.v['rb_node'].dereference().address))
-		print self.rb_node
 		self.address = long(self.v.address)
 	
 	def enum_nodes(self):

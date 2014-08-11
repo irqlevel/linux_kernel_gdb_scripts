@@ -375,6 +375,19 @@ class mm_struct():
 		return out
 
 class dentry():
+	sz = 0
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct dentry)"))
+		return cls.sz
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct dentry')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+
 	def __init__(self, v):
 		self.v = v
 		self.d_name = self.v['d_name']['name'].string()
@@ -393,8 +406,23 @@ class dentry():
 		else:
 			path = self.d_name
 		return path
+	def __str__(self):
+		out = "dentry=" + str(self.v.address) + " " + self.query_full_path()
+		return out
 
 class file():
+	sz = 0
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct file)"))
+		return cls.sz
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct file')
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
 	def __init__(self, v):
 		self.v = v
 		#print 'file=', self.v.address

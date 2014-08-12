@@ -35,7 +35,9 @@ class RbTree(gdb.Command):
 				off = long(gdb.parse_and_eval('&((struct ' + type_s + ' *)0)->' + field_s))
 				for n in root.enum_nodes():
 					addr =  n.address - off
-					gdb.execute('p/x *(struct ' + type_s + ' *)' + kstructs.tohex64(addr))
+					cmd = 'p/x *(struct ' + type_s + ' *)' + kstructs.tohex64(addr) 
+					gdb.write(cmd + '\n')
+					gdb.execute(cmd)
 
 			else:
 				raise Exception("unknown args")

@@ -454,6 +454,9 @@ def tohex64(val):
 		print str(e), val
 		raise
 
+def int_addr(val):
+	return int(tohex64(val), 16)
+
 class module_sect_attr():
 	sz = 0
 	def __init__(self, v):
@@ -594,4 +597,64 @@ class rb_root():
 		for n in self.enum_nodes():
 			out+= '\t' + str(n) + '\n'
 		return out
+
+class address_space():
+	def __init__(self, v):
+		self.v = v
+		self.address = long(self.v.address)
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct address_space')
+	def __str__(self):
+		out = 'address_space=' + tohex64(self.address)
+		return out
+
+class page():
+	sz = 0
+	def __init__(self, v):
+		self.v = v
+		if self.v['mapping']:
+			self.mapping = address_space.ptr(long(self.v['mapping'].dereference().address))
+		else:
+			self.mapping = None
+		self.address = int_addr(self.v.address)
+		self.pfn = self.page_to_pfn()
+		self.va = self.page_address()
+
+	@classmethod
+	def vmmemmap_start(cls):
+		return int('0xffffea0000000000', 16)
+	@classmethod
+	def page_offset(cls):
+		return int('0xffff880000000000', 16)
+
+	@classmethod
+	def page_shift(cls):
+		return 12
+	
+	@classmethod
+	def size(cls):
+		if cls.sz == 0:
+			cls.sz = long(gdb.parse_and_eval("sizeof(struct page)"))
+		return cls.sz
+
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+	@classmethod
+	def type_t(cls):
+		return gdb.lookup_type('struct page')
+	def __str__(self):
+		out = 'page=' + tohex64(self.address) + ' pfn=' + tohex64(self.pfn) + ' va=' + tohex64(self.va) + '\n'
+		if self.mapping != None:
+			out+= '\t' + str(self.mapping) + '\n'
+		return out
+	def page_address(self):
+		return page.page_offset() + (self.page_to_pfn() << self.page_shift())
+
+	def page_to_pfn(self):
+		return (self.address - page.vmmemmap_start())/page.size()
 

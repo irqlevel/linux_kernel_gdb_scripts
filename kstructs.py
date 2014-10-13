@@ -478,6 +478,19 @@ class module_sect_attr():
 		out = "sec_attr name=" + self.name + " addr=" + tohex64(self.address)
 		return out
 
+class ptr_ptr():
+	def __init__(self, v):
+		self.v = v
+	c_type = None
+	@classmethod
+	def type_t(cls):
+		if cls.c_type == None:
+			cls.c_type = gdb.lookup_type('long')
+		return cls.c_type
+	@classmethod
+	def ptr(cls, addr):
+		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
+
 class module_sect_attrs():
 	def __init__(self, v):
 		self.v = v

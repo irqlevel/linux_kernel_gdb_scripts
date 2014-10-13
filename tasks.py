@@ -47,6 +47,19 @@ class Tasks(gdb.Command):
 					task_p = v.cast(task_t.pointer())
 					task = kstructs.task_struct(task_p.dereference())
 					print task
+				elif argv[0] == "name":
+					name = argv[1]
+					list_off = gdb.parse_and_eval('&((struct task_struct *)0)->tasks')
+					init = gdb.parse_and_eval("init_task")
+					head = init['tasks']
+					list_entry = head['next']
+					while list_entry != head.address:
+						v = gdb.Value(long(list_entry) - long(list_off))
+						task_p = v.cast(task_t.pointer())
+						task = kstructs.task_struct(task_p.dereference())
+						if task.comm.find(name) != -1:
+							print task, '\n'
+						list_entry = list_entry['next']				
 				else:
 					raise Exception("Unknown option=" + argv[0])
 			else:

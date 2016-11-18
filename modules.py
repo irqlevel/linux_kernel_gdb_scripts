@@ -21,7 +21,7 @@ import kstructs
 class Modules(gdb.Command):
 	def __init__(self):
 		gdb.Command.__init__(self, "modules", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
-	
+
 	def modules(self):
 		mod_list = []
 		m_type = gdb.lookup_type('struct module')
@@ -29,7 +29,7 @@ class Modules(gdb.Command):
 		head = gdb.parse_and_eval("modules")
 		list_entry = head['next']
 		while list_entry != head.address:
-			v = gdb.Value(long(list_entry) - long(list_off))
+			v = gdb.Value(int(list_entry) - int(list_off))
 			mod_p = v.cast(m_type.pointer())
 			mod = kstructs.module(mod_p.dereference())
 			mod_list.append(mod)
@@ -40,7 +40,7 @@ class Modules(gdb.Command):
 
 	def invoke(self, arg, from_tty):
 		try:
-			reload(kstructs)
+			#reload(kstructs)
 			argv = gdb.string_to_argv(arg)
 			sections = False
 			for a in argv:
@@ -49,29 +49,29 @@ class Modules(gdb.Command):
 
 			if len(argv) == 0:
 				for mod in self.modules():
-					print mod, '\n'
+					print(mod, '\n')
 			elif len(argv) >= 2:
 				if argv[0] == "addr":
-					addr = long(int(argv[1], 16))
+					addr = int(int(argv[1], 16))
 					for mod in self.modules():
 						if addr >= mod.module_core and addr < mod.module_core + mod.core_size:
 							if sections:
 								mod.sections()
-							print mod, '\n'
+							print(mod, '\n')
 				elif argv[0] == "name":
 					name = argv[1]
 					for mod in self.modules():
 						if mod.name.find(name) != -1:
 							if sections:
 								mod.sections()
-							print mod, '\n'
+							print(mod, '\n')
 				else:
 					raise Exception("unknown args")
 			else:
 				raise Exception("unknown args")
 
 		except Exception as e:
-			print "Exception=", str(e)
+			print("Exception=", str(e))
 			traceback.print_exc()
 
 Modules()

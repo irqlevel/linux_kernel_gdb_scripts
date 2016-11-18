@@ -11,7 +11,7 @@ class hlist_head():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct hlist_head)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct hlist_head)"))
 			#print cls.sz
 		return cls.sz
 	@classmethod
@@ -28,7 +28,7 @@ class hlist_head():
 		#out+= " .first=" + str(self.first().v.address)
 		return out
 	def after(self):
-		return hlist_head.ptr(long(self.v.address) + hlist_head.size())
+		return hlist_head.ptr(int(self.v.address) + hlist_head.size())
 	@classmethod
 	def ptr(cls, addr):
 		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
@@ -46,7 +46,7 @@ class hlist_node():
 
 	def next(self):
 		if self.v['next'] != 0:
-			return hlist_node.ptr(long(self.v['next']))
+			return hlist_node.ptr(int(self.v['next']))
 		else:
 			return None
 	def __str__(self):
@@ -58,13 +58,13 @@ class upid():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct upid)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct upid)"))
 		return cls.sz
 
 	@classmethod
 	def get_pid_chain_off(cls):
 		if cls.pid_chain_off == 0:
-			cls.pid_chain_off = long(gdb.parse_and_eval('&((struct upid *)0)->pid_chain'))
+			cls.pid_chain_off = int(gdb.parse_and_eval('&((struct upid *)0)->pid_chain'))
 		return cls.pid_chain_off
 
 	def __init__(self, v):
@@ -78,21 +78,21 @@ class upid():
 		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
 	@classmethod
 	def from_pidhash_node(cls, node):
-		return cls.ptr(long(node.v.address)-cls.get_pid_chain_off())
+		return cls.ptr(int(node.v.address)-cls.get_pid_chain_off())
 	def __str__(self):
 		out = "upid=" + str(self.v.address) + " nr=" + str(self.nr)
 		return out
 	def get_pid_ns(self):
 		if self.v['ns'] != 0:
-			return pid_ns.ptr(long(self.v['ns']))
+			return pid_ns.ptr(int(self.v['ns']))
 		else:
 			return None
 
 class pid_ns():
 	def __init__(self, v):
 		self.v = v
-		self.level = long(self.v['level'])
-		self.nr_hashed = long(self.v['nr_hashed'])
+		self.level = int(self.v['level'])
+		self.nr_hashed = int(self.v['nr_hashed'])
 	@classmethod
 	def type_t(cls):
 		return gdb.lookup_type('struct pid_namespace')
@@ -110,7 +110,7 @@ class pid_link():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct pid_link)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct pid_link)"))
 		return cls.sz
 
 	@classmethod
@@ -133,7 +133,7 @@ PIDTYPES = {PIDTYPE_PID : "PID", PIDTYPE_PGID : "PGID", PIDTYPE_SID : "SID"}
 class atomic_t():
 	def __init__(self, v):
 		self.v = v
-		self.counter = long(self.v['counter'])
+		self.counter = int(self.v['counter'])
 	def __str__(self):
 		out = "atomic_t=" + str(self.v.address) + " counter=" + str(self.counter)
 		return out
@@ -143,14 +143,14 @@ class pid_c():
 	@classmethod
 	def get_tasks_off(cls):
 		if cls.tasks_off == 0:
-			cls.tasks_off = long(gdb.parse_and_eval('&((struct pid *)0)->tasks'))
+			cls.tasks_off = int(gdb.parse_and_eval('&((struct pid *)0)->tasks'))
 		return cls.tasks_off
 
 	numbers_off = 0
 	@classmethod
 	def get_numbers_off(cls):
 		if cls.numbers_off == 0:
-			cls.numbers_off = long(gdb.parse_and_eval('&((struct pid *)0)->numbers'))
+			cls.numbers_off = int(gdb.parse_and_eval('&((struct pid *)0)->numbers'))
 		return cls.numbers_off
 
 
@@ -161,7 +161,7 @@ class pid_c():
 
 	def get_uids(self):
 		self.upids = []
-		upid_addr = long(self.v.address) + pid_c.get_numbers_off()
+		upid_addr = int(self.v.address) + pid_c.get_numbers_off()
 		
 		for i in xrange(self.level + 1):
 			#print "i=", i
@@ -171,14 +171,14 @@ class pid_c():
 	
 	def get_tasks(self):
 		self.tasks = {PIDTYPE_PID : [], PIDTYPE_PGID : [], PIDTYPE_SID : []}
-		tasks_addr = long(self.v.address) + pid_c.get_tasks_off()
+		tasks_addr = int(self.v.address) + pid_c.get_tasks_off()
 		for i in xrange(PIDTYPE_MAX):
 			head = hlist_head.ptr(tasks_addr)
 			#print head
 			node = head.first()
 			while node != None:
 				#print node
-				pl = pid_link.ptr(long(node.v.address))
+				pl = pid_link.ptr(int(node.v.address))
 				self.tasks[i].append(task_struct.from_pid_link(pl, i))
 				node = node.next()
 			tasks_addr+= hlist_head.size()
@@ -209,7 +209,7 @@ class pid_c():
 	@classmethod
 	def from_upid(cls, upid):
 		pid_ns = upid.get_pid_ns()
-		return cls.ptr(long(upid.v.address) - cls.get_numbers_off() - pid_ns.level*upid.size())
+		return cls.ptr(int(upid.v.address) - cls.get_numbers_off() - pid_ns.level*upid.size())
 
 
 class list_head():
@@ -217,7 +217,7 @@ class list_head():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct list_head)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct list_head)"))
 		return cls.sz
 	@classmethod
 	def type_t(cls):
@@ -241,18 +241,18 @@ class list_head():
 	@classmethod
 	def list(cls, head_addr, trace = False):
 		if trace:
-			print "list_head=" +  hex(head_addr)
+			print("list_head=" +  hex(head_addr))
 		head = cls.ptr(head_addr)
 		entry = head.next()
 		l = []
 		while entry.address() != head.address():
 			l.append(entry)
 			if trace:
-				print entry
+				print(entry)
 			entry = entry.next()
 		return l
 	def address(self):
-		return long(self.v.address)
+		return int(self.v.address)
 	def address_s(self):
 		return str(self.v.address)
 
@@ -264,13 +264,13 @@ class task_struct():
 	@classmethod
 	def get_pids_off(cls):
 		if cls.pids_off == 0:
-			cls.pids_off = long(gdb.parse_and_eval("&((struct task_struct *)0)->pids"))
+			cls.pids_off = int(gdb.parse_and_eval("&((struct task_struct *)0)->pids"))
 		return cls.pids_off
 	
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct task_struct)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct task_struct)"))
 		return cls.sz
 	
 	@classmethod
@@ -280,13 +280,13 @@ class task_struct():
 	@classmethod
 	def get_children_off(cls):
 		if cls.children_off == 0:
-			cls.children_off = long(gdb.parse_and_eval('&((struct task_struct *)0)->children'))
+			cls.children_off = int(gdb.parse_and_eval('&((struct task_struct *)0)->children'))
 		return cls.children_off
 
 	@classmethod
 	def get_sibling_off(cls):
 		if cls.sibling_off == 0:
-			cls.sibling_off = long(gdb.parse_and_eval('&((struct task_struct *)0)->sibling'))
+			cls.sibling_off = int(gdb.parse_and_eval('&((struct task_struct *)0)->sibling'))
 		return cls.sibling_off
 
 	@classmethod
@@ -295,10 +295,10 @@ class task_struct():
 
 	@classmethod
 	def from_pid_link(cls, pid_link, i):
-		return cls.ptr(long(pid_link.v.address) - i*pid_link.size() - cls.get_pids_off())
+		return cls.ptr(int(pid_link.v.address) - i*pid_link.size() - cls.get_pids_off())
 
 	def address(self):
-		return long(self.v.address)
+		return int(self.v.address)
 	def address_s(self):
 		return str(self.v.address)
 	def __init__(self, v):
@@ -337,7 +337,7 @@ class task_struct():
 	def to_str(self, mm = False, stack = False, childs = False, flags = False, state = False, exit_state = False, comm = False):
 		out = 'task=' + self.address_s() + ' pid=' + str(self.pid)
 		if flags:
-			out+= ' flags=' + hex(long(self.flags))
+			out+= ' flags=' + hex(int(self.flags))
 		if state:
 			out+= ' state=' + str(self.state) 
 		if stack:
@@ -379,7 +379,7 @@ class dentry():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct dentry)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct dentry)"))
 		return cls.sz
 	@classmethod
 	def type_t(cls):
@@ -392,10 +392,10 @@ class dentry():
 		self.v = v
 		self.d_name = self.v['d_name']['name'].string()
 
-		#print long(v.address), long(v['d_parent'])
-		if long(self.v['d_parent']) == 0:
+		#print int(v.address), int(v['d_parent'])
+		if int(self.v['d_parent']) == 0:
 			self.d_parent = None
-		elif long(self.v['d_parent']) == long(self.v.address):
+		elif int(self.v['d_parent']) == int(self.v.address):
 			self.d_parent = None
 		else:
 			self.d_parent = dentry(self.v['d_parent'].dereference())
@@ -415,7 +415,7 @@ class file():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct file)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct file)"))
 		return cls.sz
 	@classmethod
 	def type_t(cls):
@@ -445,13 +445,13 @@ class path():
 		return out
 
 def tohex(val, nbits):
-	return hex(long((long(val) + (1 << nbits)) % (1 << nbits))).rstrip('L')
+	return hex(int((int(val) + (1 << nbits)) % (1 << nbits))).rstrip('L')
 
 def tohex64(val):
 	try:
 		return tohex(val, 64)
 	except Exception as e:
-		print str(e), val
+		print(str(e), val)
 		raise
 
 def int_addr(val):
@@ -466,7 +466,7 @@ class module_sect_attr():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct module_sect_attr)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct module_sect_attr)"))
 		return cls.sz
 	@classmethod
 	def ptr(cls, addr):
@@ -495,7 +495,7 @@ class module_sect_attrs():
 	def __init__(self, v):
 		self.v = v
 		self.nsections = int(self.v['nsections'])
-		sec_attr_addr = long(self.v.address) + module_sect_attrs.get_attrs_off()
+		sec_attr_addr = int(self.v.address) + module_sect_attrs.get_attrs_off()
 		self.sec_attrs = []
 		for i in xrange(self.nsections):
 			sec_attr = module_sect_attr.ptr(sec_attr_addr)
@@ -505,7 +505,7 @@ class module_sect_attrs():
 	@classmethod
 	def get_attrs_off(cls):
 		if cls.attrs_off == 0:
-			cls.attrs_off = long(gdb.parse_and_eval("&((struct module_sect_attrs *)0)->attrs"))
+			cls.attrs_off = int(gdb.parse_and_eval("&((struct module_sect_attrs *)0)->attrs"))
 		return cls.attrs_off
 	
 	@classmethod
@@ -520,19 +520,27 @@ class module_sect_attrs():
 			out+= " \t" + str(sec_attr) + '\n'
 		return out
 
+class module_layout():
+	def __init__(self, v):
+		self.v = v
+		self.base = self.v['base']
+		self.size = self.v['size']
+		self.text_size = self.v['text_size']
+
 class module():
 	def __init__(self, v):
 		self.v = v
 		self.name = self.v['name'].string()
 		self.args = self.v['args'].string()
-		self.module_core = self.v['module_core']
-		self.core_size = self.v['core_size']
-		self.core_text_size = self.v['core_text_size']
-		self.base_addr = long(self.module_core)
-		self.size = long(self.core_size)
+		self.module_layout = module_layout(self.v['core_layout'])
+		self.module_core = self.module_layout.base
+		self.core_size = self.module_layout.size
+		self.core_text_size = self.module_layout.text_size
+		self.base_addr = int(self.module_core)
+		self.size = int(self.core_size)
 		self.sect_attrs = None
 	def sections(self):
-		self.sect_attrs = module_sect_attrs.ptr(long(self.v['sect_attrs'].dereference().address))
+		self.sect_attrs = module_sect_attrs.ptr(int(self.v['sect_attrs'].dereference().address))
 		
 	def __str__(self):
 		out = 'module=' + str(self.v.address) + ' name=' + self.name + ' module_core=' + str(self.module_core) 
@@ -551,7 +559,7 @@ class rb_node():
 	def __init__(self, v):
 		self.v = v
 		self.rb_parent_color = self.v['rb_parent_color']
-		self.address = long(self.v.address)
+		self.address = int(self.v.address)
 
 	def rb_right(self):
 		if self.v['rb_right']:
@@ -588,8 +596,8 @@ class rb_root():
 	def __init__(self, v):
 		self.v = v
 		if self.v['rb_node']:
-			self.rb_node = rb_node.ptr(long(self.v['rb_node'].dereference().address))
-		self.address = long(self.v.address)
+			self.rb_node = rb_node.ptr(int(self.v['rb_node'].dereference().address))
+		self.address = int(self.v.address)
 	
 	def enum_nodes(self):
 		nodes = []
@@ -614,7 +622,7 @@ class rb_root():
 class address_space():
 	def __init__(self, v):
 		self.v = v
-		self.address = long(self.v.address)
+		self.address = int(self.v.address)
 	@classmethod
 	def ptr(cls, addr):
 		return cls(gdb.Value(addr).cast(cls.type_t().pointer()).dereference())
@@ -630,7 +638,7 @@ class page():
 	def __init__(self, v):
 		self.v = v
 		if self.v['mapping']:
-			self.mapping = address_space.ptr(long(self.v['mapping'].dereference().address))
+			self.mapping = address_space.ptr(int(self.v['mapping'].dereference().address))
 		else:
 			self.mapping = None
 		self.address = int_addr(self.v.address)
@@ -651,7 +659,7 @@ class page():
 	@classmethod
 	def size(cls):
 		if cls.sz == 0:
-			cls.sz = long(gdb.parse_and_eval("sizeof(struct page)"))
+			cls.sz = int(gdb.parse_and_eval("sizeof(struct page)"))
 		return cls.sz
 
 	@classmethod
